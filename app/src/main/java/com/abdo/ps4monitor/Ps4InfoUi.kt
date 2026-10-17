@@ -100,6 +100,10 @@ import org.json.JSONObject
     var checking by remember { mutableStateOf(false) }
     var extra by remember(ps4.id) { mutableStateOf(EzServer.roExtra().joinToString("\n")) }
     var msg by remember { mutableStateOf("") }
+    var trop by remember { mutableStateOf<List<String>?>(null) }
+    var tropBusy by remember { mutableStateOf(false) }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     var info by remember(ps4.id, reload) { mutableStateOf<EzServer.ServerInfo?>(null) }
     LaunchedEffect(ps4.id, reload) { sys = null; val (i, s) = withContext(Dispatchers.IO) { EzServer.info(ps4) to Ps4Info.deviceRows(EzServer.sysinfo(ps4)) }; info = i; sys = s }
     LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
@@ -128,6 +132,18 @@ import org.json.JSONObject
                 }
                 if (msg.isNotBlank()) Dim(msg)
                 if (checking) LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+        }
+        item {
+            Panel {
+                Text(tr("Trophies (discovery)", "الإنجازات (فحص أولي)"), fontWeight = FontWeight.SemiBold)
+                Dim(tr("Reads the account folders and shows what the console stores about trophies. Send the result so the trophy screen can be built on the real layout.", "يقرأ مجلدات الحسابات ويعرض ما يخزّنه الجهاز عن الإنجازات. أرسل النتيجة ليُبنى شاشة الإنجازات على البنية الفعلية."))
+                FilledTonalButton(enabled = !tropBusy, onClick = { scope.launch { tropBusy = true; trop = null; trop = withContext(Dispatchers.IO) { Ps4Trophy.probe(ps4, ctx.cacheDir) }; tropBusy = false } }) { Lbl(tr("Scan trophies", "فحص الإنجازات")) }
+                if (tropBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                trop?.let { l ->
+                    TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(l.joinToString("\n"))) }) { Lbl(tr("Copy result", "نسخ النتيجة")) }
+                    l.forEach { Dim(it) }
+                }
             }
         }
         checks?.let { l ->
